@@ -46,10 +46,12 @@ class MyOffersScreen extends StatelessWidget {
             itemCount: myOffers.length,
             itemBuilder: (context, index) {
               final offer = myOffers[index];
-              final book = bookProvider.books.firstWhere(
-                (b) => b.id == offer.bookId,
-                orElse: () => throw Exception('Book not found'),
-              );
+              final book = bookProvider.books.where((b) => b.id == offer.bookId).firstOrNull;
+              
+              if (book == null) {
+                return const SizedBox.shrink();
+              }
+              
               final isRequester = offer.requesterId == currentUserId;
               
               return Card(
