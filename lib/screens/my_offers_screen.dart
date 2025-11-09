@@ -18,140 +18,210 @@ class MyOffersScreen extends StatelessWidget {
       body: Consumer<BookProvider>(
         builder: (context, bookProvider, _) {
           final currentUserId = context.read<AuthProvider>().user?.uid ?? '';
-          final myOffers = bookProvider.userOffers;
+          final allOffers = bookProvider.userOffers;
           
-          if (myOffers.isEmpty) {
+          // Show offers where current user is the owner (incoming requests)
+          final incomingOffers = allOffers.where((offer) {
+            final book = bookProvider.books.where((b) => b.id == offer.bookId).firstOrNull;
+            return book != null && offer.ownerId == currentUserId;
+          }).toList();
+          
+          // Show offers where current user is the requester (outgoing requests)
+          final outgoingOffers = allOffers.where((offer) {
+            final book = bookProvider.books.where((b) => b.id == offer.bookId).firstOrNull;
+            return book != null && offer.requesterId == currentUserId;
+          }).toList();
+          
+          if (incomingOffers.isEmpty && outgoingOffers.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.swap_horiz, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No swap offers yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9C73D).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.swap_horiz,
+                      size: 80,
+                      color: Color(0xFFF9C73D),
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'No swap offers yet',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    'Start swapping books to see your offers here',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    'Start exploring books and make\nswap offers to see them here!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[400],
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      DefaultTabController.of(context).animateTo(0);
+                    },
+                    icon: const Icon(Icons.explore),
+                    label: const Text('Explore Books'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
                   ),
                 ],
               ),
             );
           }
 
-          return ListView.builder(
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            itemCount: myOffers.length,
-            itemBuilder: (context, index) {
-              final offer = myOffers[index];
-              final book = bookProvider.books.where((b) => b.id == offer.bookId).firstOrNull;
-              
-              if (book == null) {
-                return const SizedBox.shrink();
-              }
-              
-              final isRequester = offer.requesterId == currentUserId;
-              
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (incomingOffers.isNotEmpty) ...[
+                  const Text(
+                    'Incoming Requests',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...incomingOffers.map((offer) => _buildOfferCard(
+                    context, offer, bookProvider, currentUserId, true
+                  )),
+                  const SizedBox(height: 24),
+                ],
+                if (outgoingOffers.isNotEmpty) ...[
+                  const Text(
+                    'My Requests',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...outgoingOffers.map((offer) => _buildOfferCard(
+                    context, offer, bookProvider, currentUserId, false
+                  )),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildOfferCard(BuildContext context, SwapOffer offer, BookProvider bookProvider, String currentUserId, bool isIncoming) {
+    final book = bookProvider.books.firstWhere((b) => b.id == offer.bookId);
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                book.imageUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CrossPlatformImage(
+                          imageSource: book.imageUrl,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.book, size: 30),
+                      ),
+                const SizedBox(width: 16),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          book.imageUrl.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: CrossPlatformImage(
-                                    imageSource: book.imageUrl,
-                                    width: 60,
-                                    height: 60,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.book, size: 30),
-                                ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  book.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                Text('by ${book.author}'),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isRequester ? 'You requested this book' : 'Someone wants your book',
-                                  style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          _buildStatusChip(offer.status),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      if (!isRequester && offer.status == 'pending')
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _handleOfferResponse(context, offer, 'accepted'),
-                                icon: const Icon(Icons.check),
-                                label: const Text('Accept'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _handleOfferResponse(context, offer, 'rejected'),
-                                icon: const Icon(Icons.close),
-                                label: const Text('Reject'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       Text(
-                        'Created: ${_formatDate(offer.createdAt)}',
+                        book.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text('by ${book.author}'),
+                      const SizedBox(height: 4),
+                      Text(
+                        isIncoming ? 'Someone wants your book' : 'You requested this book',
                         style: TextStyle(
-                          color: Colors.grey[500],
+                          color: Colors.grey[400],
                           fontSize: 12,
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
-          );
-        },
+                _buildStatusChip(offer.status),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (isIncoming && offer.status == 'pending')
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _handleOfferResponse(context, offer, 'accepted'),
+                      icon: const Icon(Icons.check),
+                      label: const Text('Accept'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _handleOfferResponse(context, offer, 'rejected'),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Reject'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            Text(
+              'Created: ${_formatDate(offer.createdAt)}',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
