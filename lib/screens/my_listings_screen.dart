@@ -3,10 +3,38 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 import '../providers/book_provider.dart';
 import '../models/book.dart';
+import '../widgets/cross_platform_image.dart';
 import 'add_book_screen.dart';
+import 'edit_book_screen.dart';
 
 class MyListingsScreen extends StatelessWidget {
   const MyListingsScreen({super.key});
+
+  void _showDeleteDialog(BuildContext context, BookProvider bookProvider, Book book) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Book'),
+        content: Text('Are you sure you want to delete "${book.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              bookProvider.deleteBook(book.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Book deleted successfully')),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +93,12 @@ class MyListingsScreen extends StatelessWidget {
                               leading: book.imageUrl.isNotEmpty
                                   ? ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
-                                      child: book.imageUrl.startsWith('http')
-                                          ? Image.network(book.imageUrl, width: 50, height: 50, fit: BoxFit.cover)
-                                          : Image.file(File(book.imageUrl), width: 50, height: 50, fit: BoxFit.cover),
+                                      child: CrossPlatformImage(
+                                        imageSource: book.imageUrl,
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                      ),
                                     )
                                   : const Icon(Icons.book),
                               title: Text(book.title),
@@ -84,8 +115,15 @@ class MyListingsScreen extends StatelessWidget {
                                   ),
                                 ],
                                 onSelected: (value) {
-                                  if (value == 'delete') {
-                                    bookProvider.deleteBook(book.id);
+                                  if (value == 'edit') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EditBookScreen(book: book),
+                                      ),
+                                    );
+                                  } else if (value == 'delete') {
+                                    _showDeleteDialog(context, bookProvider, book);
                                   }
                                 },
                               ),

@@ -5,6 +5,7 @@ import 'dart:io';
 import '../providers/book_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/book.dart';
+import '../widgets/cross_platform_image.dart';
 
 class AddBookScreen extends StatefulWidget {
   const AddBookScreen({super.key});
@@ -22,6 +23,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
   final List<String> _categories = ['General', 'Textbooks', 'Fiction', 'Non-Fiction', 'Science', 'Mystery and Thriller', 'Literature', 'Technology', 'Other'];
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -98,19 +100,17 @@ class _AddBookScreenState extends State<AddBookScreen> {
                   child: _selectedImage != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _selectedImage!,
+                          child: CrossPlatformImage(
+                            imageSource: _selectedImage!,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.error, size: 50, color: Colors.red),
-                                  Text('Error loading image', style: TextStyle(color: Colors.red)),
-                                ],
-                              );
-                            },
+                            errorWidget: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error, size: 50, color: Colors.red),
+                                Text('Error loading image', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
                           ),
                         )
                       : Column(
@@ -129,11 +129,17 @@ class _AddBookScreenState extends State<AddBookScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _addBook,
+                onPressed: _isLoading ? null : _addBook,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Post Book', style: TextStyle(fontSize: 16)),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Post Book', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),
@@ -187,13 +193,15 @@ class _AddBookScreenState extends State<AddBookScreen> {
     }
   }
 
-  void _addBook() {
+  void _addBook() async {
     if (_titleController.text.isEmpty || _authorController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
       );
       return;
     }
+
+    setState(() => _isLoading = true);
 
     final currentUserId = context.read<AuthProvider>().user?.uid ?? '';
     final book = Book(
@@ -202,15 +210,23 @@ class _AddBookScreenState extends State<AddBookScreen> {
       author: _authorController.text.trim(),
       condition: _condition,
       category: _category,
-      imageUrl: _selectedImage?.path ?? '',
+      imageUrl: '',
       ownerId: currentUserId,
       createdAt: DateTime.now(),
     );
 
-    context.read<BookProvider>().addBook(book);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Book posted successfully!')),
-    );
-    Navigator.pop(context);
+    try {
+      await context.read<BookProvider>().addBook(book, imageFile: _selectedImage);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Book posted successfully!'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error posting book: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }

@@ -4,6 +4,7 @@ import '../providers/book_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/swap.dart';
 import '../models/book.dart';
+import '../widgets/cross_platform_image.dart';
 import 'dart:io';
 
 class ExploreScreen extends StatefulWidget {
@@ -146,9 +147,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         leading: book.imageUrl.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
-                                child: book.imageUrl.startsWith('http')
-                                    ? Image.network(book.imageUrl, width: 50, height: 50, fit: BoxFit.cover)
-                                    : Image.file(File(book.imageUrl), width: 50, height: 50, fit: BoxFit.cover),
+                                child: CrossPlatformImage(
+                                  imageSource: book.imageUrl,
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
                               )
                             : const Icon(Icons.book, size: 50),
                         title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.bold)),
