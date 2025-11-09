@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:typed_data';
 
 class CrossPlatformImage extends StatelessWidget {
   final dynamic imageSource;
@@ -10,13 +11,13 @@ class CrossPlatformImage extends StatelessWidget {
   final Widget? errorWidget;
 
   const CrossPlatformImage({
-    Key? key,
+    super.key,
     required this.imageSource,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
     this.errorWidget,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

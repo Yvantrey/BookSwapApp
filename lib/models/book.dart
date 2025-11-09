@@ -7,6 +7,7 @@ class Book {
   final String ownerId;
   final String status;
   final String category;
+  final String swapFor;
   final DateTime createdAt;
 
   Book({
@@ -18,6 +19,7 @@ class Book {
     required this.ownerId,
     this.status = 'available',
     this.category = 'General',
+    required this.swapFor,
     required this.createdAt,
   });
 
@@ -30,6 +32,7 @@ class Book {
     'ownerId': ownerId,
     'status': status,
     'category': category,
+    'swapFor': swapFor,
     'createdAt': createdAt.millisecondsSinceEpoch,
   };
 
@@ -42,6 +45,7 @@ class Book {
     ownerId: map['ownerId'],
     status: map['status'] ?? 'available',
     category: map['category'] ?? 'General',
+    swapFor: map['swapFor'] ?? '',
     createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt']),
   );
 }

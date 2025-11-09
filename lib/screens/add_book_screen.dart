@@ -6,17 +6,19 @@ import '../providers/book_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/book.dart';
 import '../widgets/cross_platform_image.dart';
+import '../services/permission_service.dart';
 
 class AddBookScreen extends StatefulWidget {
   const AddBookScreen({super.key});
 
   @override
-  _AddBookScreenState createState() => _AddBookScreenState();
+  AddBookScreenState createState() => AddBookScreenState();
 }
 
-class _AddBookScreenState extends State<AddBookScreen> {
+class AddBookScreenState extends State<AddBookScreen> {
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
+  final _swapForController = TextEditingController();
   String _condition = 'Good';
   String _category = 'General';
   final List<String> _conditions = ['New', 'Like New', 'Good', 'Used'];
@@ -77,6 +79,16 @@ class _AddBookScreenState extends State<AddBookScreen> {
                 onChanged: (value) => setState(() => _category = value!),
               ),
               const SizedBox(height: 16),
+              TextField(
+                controller: _swapForController,
+                decoration: const InputDecoration(
+                  labelText: 'Swap for (Optional)',
+                  border: OutlineInputBorder(),
+                  hintText: 'What book do you want in exchange? (Leave blank for any book)',
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -100,18 +112,47 @@ class _AddBookScreenState extends State<AddBookScreen> {
                   child: _selectedImage != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: CrossPlatformImage(
-                            imageSource: _selectedImage!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            errorWidget: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error, size: 50, color: Colors.red),
-                                Text('Error loading image', style: TextStyle(color: Colors.red)),
-                              ],
-                            ),
-                          ),
+                          child: _selectedImage!.path.startsWith('https://')
+                              ? Image.network(
+                                  _selectedImage!.path,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Colors.grey[200],
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.image, size: 50, color: Colors.grey[600]),
+                                          Text('Sample Cover', style: TextStyle(color: Colors.grey[600])),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                )
+                              : CrossPlatformImage(
+                                  imageSource: _selectedImage!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  errorWidget: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.error, size: 50, color: Colors.red),
+                                      Text('Error loading image', style: TextStyle(color: Colors.red)),
+                                    ],
+                                  ),
+                                ),
                         )
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -161,12 +202,15 @@ class _AddBookScreenState extends State<AddBookScreen> {
                 title: const Text('Choose from Gallery'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-                  if (image != null) {
-                    setState(() {
-                      _selectedImage = File(image.path);
-                    });
-                  }
+                  await _selectImageFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.collections),
+                title: const Text('Sample Photos'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _showSamplePhotos();
                 },
               ),
               ListTile(
@@ -174,12 +218,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                 title: const Text('Take Photo'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-                  if (image != null) {
-                    setState(() {
-                      _selectedImage = File(image.path);
-                    });
-                  }
+                  await _takePhotoWithCamera();
                 },
               ),
             ],
@@ -187,10 +226,231 @@ class _AddBookScreenState extends State<AddBookScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening image picker: $e')),
+        );
+      }
     }
+  }
+
+  Future<void> _selectImageFromGallery() async {
+    try {
+      final hasPermission = await PermissionService.requestStoragePermission();
+      
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Storage permission is required to select images'),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: PermissionService.openAppSettings,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      
+
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        final file = File(image.path);
+        final exists = await file.exists();
+        final size = exists ? await file.length() : 0;
+        
+        if (exists && size > 0) {
+          setState(() {
+            _selectedImage = file;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image selected successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Selected image file is invalid or empty'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _takePhotoWithCamera() async {
+    try {
+      final hasPermission = await PermissionService.requestCameraPermission();
+      
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Camera permission is required to take photos'),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: PermissionService.openAppSettings,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      
+
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        final file = File(image.path);
+        final exists = await file.exists();
+        final size = exists ? await file.length() : 0;
+        
+        if (exists && size > 0) {
+          setState(() {
+            _selectedImage = file;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Photo captured successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Captured photo file is invalid or empty'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error taking photo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showSamplePhotos() async {
+    final sampleImages = [
+      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=600&fit=crop',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Choose Sample Cover'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: sampleImages.length,
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedImage = File(sampleImages[index]);
+                  });
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Sample cover selected!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      sampleImages[index],
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.image, size: 40, color: Colors.grey[600]),
+                              Text('Nature ${index + 1}', style: TextStyle(color: Colors.grey[600])),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _addBook() async {
@@ -210,6 +470,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
       author: _authorController.text.trim(),
       condition: _condition,
       category: _category,
+      swapFor: _swapForController.text.trim(),
       imageUrl: '',
       ownerId: currentUserId,
       createdAt: DateTime.now(),
@@ -217,14 +478,18 @@ class _AddBookScreenState extends State<AddBookScreen> {
 
     try {
       await context.read<BookProvider>().addBook(book, imageFile: _selectedImage);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Book posted successfully!'), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Book posted successfully!'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error posting book: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error posting book: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() => _isLoading = false);
     }

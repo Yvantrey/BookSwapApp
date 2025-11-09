@@ -66,6 +66,7 @@ class BookProvider extends ChangeNotifier {
         author: book.author,
         condition: book.condition,
         category: book.category,
+        swapFor: book.swapFor,
         imageUrl: imageUrl,
         ownerId: book.ownerId,
         status: book.status,
@@ -73,6 +74,8 @@ class BookProvider extends ChangeNotifier {
       );
       
       await _firestoreService.addBook(bookWithImage);
+    } catch (e) {
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -101,6 +104,7 @@ class BookProvider extends ChangeNotifier {
       author: book.author,
       condition: book.condition,
       category: book.category,
+      swapFor: book.swapFor,
       imageUrl: imageUrl,
       ownerId: book.ownerId,
       status: book.status,
@@ -124,6 +128,10 @@ class BookProvider extends ChangeNotifier {
 
   Future<void> createSwapOffer(SwapOffer offer) async {
     await _firestoreService.createSwapOffer(offer);
+  }
+
+  Future<void> updateSwapOfferStatus(String offerId, String status) async {
+    await _firestoreService.updateSwapOfferStatus(offerId, status);
   }
 
   Future<void> loadUserProfile(String userId) async {

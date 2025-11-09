@@ -1,1 +1,29 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"bookswapapp-b246c","appId":"1:863382206691:android:67741ca5a8365af8ffadd6","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"bookswapapp-b246c","configurations":{"android":"1:863382206691:android:67741ca5a8365af8ffadd6","ios":"1:863382206691:ios:f479d27ff51785aeffadd6"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "bookswapapp-b246c",
+          "appId": "1:863382206691:android:67741ca5a8365af8ffadd6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "bookswapapp-b246c",
+          "configurations": {
+            "android": "1:863382206691:android:67741ca5a8365af8ffadd6",
+            "ios": "1:863382206691:ios:f479d27ff51785aeffadd6"
+          }
+        }
+      }
+    }
+  }
+}

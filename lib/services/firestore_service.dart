@@ -7,10 +7,16 @@ import '../models/chat.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Stream<List<Book>> getBooks() => _db.collection('books')
-      .where('status', isEqualTo: 'available')
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => Book.fromMap(doc.data())).toList());
+  Stream<List<Book>> getBooks() {
+    return _db.collection('books')
+        .where('status', isEqualTo: 'available')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            return Book.fromMap(doc.data());
+          }).toList();
+        });
+  }
 
   Stream<List<Book>> getUserBooks(String userId) => _db.collection('books')
       .where('ownerId', isEqualTo: userId)
@@ -18,9 +24,7 @@ class FirestoreService {
       .map((snapshot) => snapshot.docs.map((doc) => Book.fromMap(doc.data())).toList());
 
   Future<void> addBook(Book book) async {
-    print('Adding book to Firestore: ${book.title}');
     await _db.collection('books').doc(book.id).set(book.toMap());
-    print('Book added successfully');
   }
 
   Future<void> updateBook(Book book) => _db.collection('books').doc(book.id).update(book.toMap());
@@ -29,13 +33,27 @@ class FirestoreService {
 
   Future<void> createSwapOffer(SwapOffer offer) async {
     await _db.collection('swaps').doc(offer.id).set(offer.toMap());
-    await _db.collection('books').doc(offer.bookId).update({'status': 'pending'});
   }
 
-  Stream<List<SwapOffer>> getUserSwapOffers(String userId) => _db.collection('swaps')
-      .where('requesterId', isEqualTo: userId)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => SwapOffer.fromMap(doc.data())).toList());
+  Future<void> updateSwapOfferStatus(String offerId, String status) async {
+    await _db.collection('swaps').doc(offerId).update({'status': status});
+  }
+
+  Stream<List<SwapOffer>> getUserSwapOffers(String userId) {
+    return _db.collection('swaps')
+        .where('requesterId', isEqualTo: userId)
+        .snapshots()
+        .asyncMap((requestedSnapshot) async {
+      final requestedOffers = requestedSnapshot.docs.map((doc) => SwapOffer.fromMap(doc.data())).toList();
+      
+      final receivedSnapshot = await _db.collection('swaps')
+          .where('ownerId', isEqualTo: userId)
+          .get();
+      final receivedOffers = receivedSnapshot.docs.map((doc) => SwapOffer.fromMap(doc.data())).toList();
+      
+      return [...requestedOffers, ...receivedOffers];
+    });
+  }
 
   Future<UserProfile?> getUserProfile(String userId) async {
     try {
@@ -49,17 +67,22 @@ class FirestoreService {
     }
   }
 
-  Stream<List<Chat>> getUserChats(String userId) => _db.collection('chats')
-      .where('participants', arrayContains: userId)
-      .orderBy('lastMessageTime', descending: true)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => Chat.fromMap(doc.data())).toList());
+  Stream<List<Chat>> getUserChats(String userId) {
+    return _db.collection('chats')
+        .where('participants', arrayContains: userId)
+        .snapshots()
+        .map((snapshot) {
+          final chats = snapshot.docs.map((doc) => Chat.fromMap(doc.data())).toList();
+          chats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+          return chats;
+        });
+  }
 
   Stream<List<Message>> getChatMessages(String chatId) => _db.collection('messages')
       .where('chatId', isEqualTo: chatId)
-      .orderBy('timestamp', descending: false)
+      .orderBy('timestamp', descending: true)
       .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => Message.fromMap(doc.data())).toList());
+      .map((snapshot) => snapshot.docs.map((doc) => Message.fromMap(doc.data())).toList().reversed.toList());
 
   Future<String> createOrGetChat(String userId1, String userId2, String bookId) async {
     final participants = [userId1, userId2]..sort();

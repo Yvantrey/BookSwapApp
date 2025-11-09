@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import '../providers/book_provider.dart';
 import '../models/book.dart';
 import '../widgets/cross_platform_image.dart';
@@ -55,85 +54,57 @@ class MyListingsScreen extends StatelessWidget {
       body: Consumer<BookProvider>(
         builder: (context, bookProvider, _) {
           final books = bookProvider.userBooks;
-          final offers = bookProvider.userOffers;
           
-          return Column(
-            children: [
-              if (offers.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('My Offers', style: Theme.of(context).textTheme.headlineSmall),
-                ),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: offers.length,
+          return books.isEmpty
+              ? const Center(child: Text('No books listed'))
+              : ListView.builder(
+                  itemCount: books.length,
                   itemBuilder: (context, index) {
-                    final offer = offers[index];
+                    final book = books[index];
                     return Card(
+                      margin: const EdgeInsets.all(8),
                       child: ListTile(
-                        title: const Text('Swap Offer'),
-                        subtitle: Text('Status: ${offer.status}'),
-                        trailing: Chip(label: Text(offer.status)),
+                        leading: book.imageUrl.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: CrossPlatformImage(
+                                  imageSource: book.imageUrl,
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : const Icon(Icons.book),
+                        title: Text(book.title),
+                        subtitle: Text('${book.author} - ${book.condition}'),
+                        trailing: PopupMenuButton(
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
+                          ],
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => EditBookScreen(book: book),
+                                ),
+                              );
+                            } else if (value == 'delete') {
+                              _showDeleteDialog(context, bookProvider, book);
+                            }
+                          },
+                        ),
                       ),
                     );
                   },
-                ),
-              ],
-              Expanded(
-                child: books.isEmpty
-                    ? const Center(child: Text('No books listed'))
-                    : ListView.builder(
-                        itemCount: books.length,
-                        itemBuilder: (context, index) {
-                          final book = books[index];
-                          return Card(
-                            margin: const EdgeInsets.all(8),
-                            child: ListTile(
-                              leading: book.imageUrl.isNotEmpty
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: CrossPlatformImage(
-                                        imageSource: book.imageUrl,
-                                        width: 50,
-                                        height: 50,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  : const Icon(Icons.book),
-                              title: Text(book.title),
-                              subtitle: Text('${book.author} - ${book.condition}'),
-                              trailing: PopupMenuButton(
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('Edit'),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Delete'),
-                                  ),
-                                ],
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => EditBookScreen(book: book),
-                                      ),
-                                    );
-                                  } else if (value == 'delete') {
-                                    _showDeleteDialog(context, bookProvider, book);
-                                  }
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          );
+                );
         },
       ),
     );

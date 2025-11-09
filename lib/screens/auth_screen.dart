@@ -7,10 +7,10 @@ class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
   @override
-  _AuthScreenState createState() => _AuthScreenState();
+  AuthScreenState createState() => AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class AuthScreenState extends State<AuthScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -152,12 +152,14 @@ class _AuthScreenState extends State<AuthScreen> {
     } else {
       error = await auth.signUp(name, email, password);
       if (error == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Verification email sent.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account created successfully! Verification email sent.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
     }
     
@@ -173,9 +175,11 @@ class _AuthScreenState extends State<AuthScreen> {
         friendlyError = 'Email already registered';
       }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError)),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError)),
+        );
+      }
     }
   }
 }

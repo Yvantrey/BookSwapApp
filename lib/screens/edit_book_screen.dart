@@ -5,19 +5,21 @@ import 'dart:io';
 import '../providers/book_provider.dart';
 import '../models/book.dart';
 import '../widgets/cross_platform_image.dart';
+import '../services/permission_service.dart';
 
 class EditBookScreen extends StatefulWidget {
   final Book book;
   
-  const EditBookScreen({Key? key, required this.book}) : super(key: key);
+  const EditBookScreen({super.key, required this.book});
 
   @override
-  _EditBookScreenState createState() => _EditBookScreenState();
+  EditBookScreenState createState() => EditBookScreenState();
 }
 
-class _EditBookScreenState extends State<EditBookScreen> {
+class EditBookScreenState extends State<EditBookScreen> {
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
+  final _swapForController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   String _condition = 'Good';
   String _category = 'General';
@@ -32,6 +34,7 @@ class _EditBookScreenState extends State<EditBookScreen> {
     super.initState();
     _titleController.text = widget.book.title;
     _authorController.text = widget.book.author;
+    _swapForController.text = widget.book.swapFor;
     _condition = widget.book.condition;
     _category = widget.book.category;
   }
@@ -66,7 +69,7 @@ class _EditBookScreenState extends State<EditBookScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _condition,
+                initialValue: _condition,
                 decoration: const InputDecoration(
                   labelText: 'Condition',
                   border: OutlineInputBorder(),
@@ -79,7 +82,7 @@ class _EditBookScreenState extends State<EditBookScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _category,
+                initialValue: _category,
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(),
@@ -89,6 +92,16 @@ class _EditBookScreenState extends State<EditBookScreen> {
                   child: Text(category),
                 )).toList(),
                 onChanged: (value) => setState(() => _category = value!),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _swapForController,
+                decoration: const InputDecoration(
+                  labelText: 'Swap for (What book do you want in exchange?)',
+                  border: OutlineInputBorder(),
+                  hintText: 'e.g., Harry Potter series, Programming books, etc.',
+                ),
+                maxLines: 2,
               ),
               const SizedBox(height: 16),
               const Text('Book Cover (Optional)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
@@ -150,42 +163,112 @@ class _EditBookScreenState extends State<EditBookScreen> {
   }
 
   Future<void> _pickImage() async {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-                if (image != null) {
-                  setState(() => _selectedImage = File(image.path));
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo'),
-              onTap: () async {
-                Navigator.pop(context);
-                final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-                if (image != null) {
-                  setState(() => _selectedImage = File(image.path));
-                }
-              },
-            ),
-          ],
+    try {
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  final hasPermission = await PermissionService.requestStoragePermission();
+                  if (!hasPermission) {
+                    if (mounted) {
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Storage permission is required to select images'),
+                          action: SnackBarAction(
+                            label: 'Settings',
+                            onPressed: PermissionService.openAppSettings,
+                          ),
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                  
+                  try {
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: 1024,
+                      maxHeight: 1024,
+                      imageQuality: 85,
+                    );
+                    if (image != null) {
+                      setState(() => _selectedImage = File(image.path));
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(content: Text('Error selecting image: $e')),
+                      );
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  
+                  final scaffoldMessenger2 = ScaffoldMessenger.of(context);
+                  final hasPermission = await PermissionService.requestCameraPermission();
+                  if (!hasPermission) {
+                    if (mounted) {
+                      scaffoldMessenger2.showSnackBar(
+                        const SnackBar(
+                          content: Text('Camera permission is required to take photos'),
+                          action: SnackBarAction(
+                            label: 'Settings',
+                            onPressed: PermissionService.openAppSettings,
+                          ),
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                  
+                  try {
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.camera,
+                      maxWidth: 1024,
+                      maxHeight: 1024,
+                      imageQuality: 85,
+                    );
+                    if (image != null) {
+                      setState(() => _selectedImage = File(image.path));
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      scaffoldMessenger2.showSnackBar(
+                        SnackBar(content: Text('Error taking photo: $e')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening image picker: $e')),
+        );
+      }
+    }
   }
 
   void _updateBook() async {
-    if (_titleController.text.trim().isEmpty || _authorController.text.trim().isEmpty) {
+    if (_titleController.text.trim().isEmpty || _authorController.text.trim().isEmpty || _swapForController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
       );
@@ -201,6 +284,7 @@ class _EditBookScreenState extends State<EditBookScreen> {
         author: _authorController.text.trim(),
         condition: _condition,
         category: _category,
+        swapFor: _swapForController.text.trim(),
         imageUrl: widget.book.imageUrl,
         ownerId: widget.book.ownerId,
         status: widget.book.status,
@@ -209,14 +293,18 @@ class _EditBookScreenState extends State<EditBookScreen> {
 
       await context.read<BookProvider>().updateBook(updatedBook, imageFile: _selectedImage);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Book updated successfully!'), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Book updated successfully!'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating book: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating book: $e')),
+        );
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -226,6 +314,7 @@ class _EditBookScreenState extends State<EditBookScreen> {
   void dispose() {
     _titleController.dispose();
     _authorController.dispose();
+    _swapForController.dispose();
     super.dispose();
   }
 }

@@ -3,16 +3,15 @@ import 'package:provider/provider.dart';
 import '../providers/book_provider.dart';
 import '../providers/auth_provider.dart';
 import 'chat_detail_screen.dart';
-import 'explore_screen.dart';
 
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key});
 
   @override
-  _ChatsScreenState createState() => _ChatsScreenState();
+  ChatsScreenState createState() => ChatsScreenState();
 }
 
-class _ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin {
+class ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -52,7 +51,14 @@ class _ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin
           ),
         ],
       ),
-      body: Consumer<BookProvider>(builder: (context, bookProvider, _) {
+      body: RefreshIndicator(
+        onRefresh: () async {
+          final currentUserId = context.read<AuthProvider>().user?.uid ?? '';
+          if (currentUserId.isNotEmpty) {
+            context.read<BookProvider>().listenToUserChats(currentUserId);
+          }
+        },
+        child: Consumer<BookProvider>(builder: (context, bookProvider, _) {
         final chats = bookProvider.userChats;
         final currentUserId = context.read<AuthProvider>().user?.uid ?? '';
         
@@ -68,7 +74,7 @@ class _ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9C73D).withOpacity(0.1),
+                        color: const Color(0xFFF9C73D).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -99,10 +105,10 @@ class _ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin
                     const SizedBox(height: 32),
                     ElevatedButton.icon(
                       onPressed: () {
-                        // Navigate to explore page
-                        DefaultTabController.of(context).animateTo(1);
+                        // Navigate to dashboard page
+                        DefaultTabController.of(context).animateTo(0);
                       },
-                      icon: const Icon(Icons.explore),
+                      icon: const Icon(Icons.dashboard),
                       label: const Text('Explore Books'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -206,6 +212,7 @@ class _ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin
           },
         );
       }),
+      ),
     );
   }
 
@@ -215,7 +222,7 @@ class _ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin
       decoration: BoxDecoration(
         color: const Color(0xFF0F163A),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF9C73D).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFFF9C73D).withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
