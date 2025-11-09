@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase tools
+firebase-tools-local
+.firebase/
+firebase-debug.log
+firestore-debug.log

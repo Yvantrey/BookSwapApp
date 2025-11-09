@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gcm_defaultSenderId" translatable="false">863382206691</string>
+    <string name="google_api_key" translatable="false">AIzaSyAeeM_b3ElIQGMwOSkyHXrQZ1yMQb8YDvU</string>
+    <string name="google_app_id" translatable="false">1:863382206691:android:67741ca5a8365af8ffadd6</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAeeM_b3ElIQGMwOSkyHXrQZ1yMQb8YDvU</string>
+    <string name="google_storage_bucket" translatable="false">bookswapapp-b246c.firebasestorage.app</string>
+    <string name="project_id" translatable="false">bookswapapp-b246c</string>
+</resources>
