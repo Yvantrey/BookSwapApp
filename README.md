@@ -102,8 +102,6 @@ The app is organized into several key directories:
 - Image uploads are safely stored in Firebase Storage
 - User permissions are required for camera and storage access
 
-## Troubleshooting
-
 ### Common Issues
 
 - **Build errors**: Run `flutter clean && flutter pub get` to refresh dependencies
